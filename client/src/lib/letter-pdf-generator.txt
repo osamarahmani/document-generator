@@ -1,0 +1,557 @@
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as Papa from "papaparse";
+
+
+
+
+// Utility to convert any string to camelCase
+function toCamelCase(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/[_\s]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ""));
+}
+
+// Interface for your letter data
+interface LetterData {
+  recipientName: string;
+  internId: string;
+  courseName: string;
+  projectTitle: string;
+  startDate: string;
+  endDate: string;
+}
+
+// Function to parse CSV with header normalization
+function parseCSV(csvString: string): Promise<LetterData[]> {
+  return new Promise((resolve, reject) => {
+    Papa.parse(csvString, {
+      header: true,
+      // Normalize headers here:
+      transformHeader: (header) => toCamelCase(header),
+      skipEmptyLines: true,
+      complete: (results) => {
+        if (results.errors.length) {
+          reject(results.errors);
+        } else {
+          // results.data is now array of objects with normalized keys
+          resolve(results.data as LetterData[]);
+        }
+      },
+    });
+  });
+}
+
+function addJustifiedText(
+  pdf: jsPDF,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number
+): number {
+  const lines: string[] = pdf.splitTextToSize(text, maxWidth);
+
+  for (let i = 0; i < lines.length; i++) {
+    const line: string = lines[i].trim();
+
+    if (i === lines.length - 1 || line === "") {
+      // Last line or empty: left aligned
+      pdf.text(line, x, y);
+    } else {
+      const words: string[] = line.split(/\s+/);
+      if (words.length === 1) {
+        // Single word: just left align
+        pdf.text(line, x, y);
+      } else {
+        const wordsWidth: number = words.reduce(
+          (sum: number, word: string) => sum + pdf.getTextWidth(word),
+          0
+        );
+        const totalSpacing: number = maxWidth - wordsWidth;
+        const spaceWidth: number = totalSpacing / (words.length - 1);
+
+        let currentX: number = x;
+
+        words.forEach((word: string) => {
+          pdf.text(word, currentX, y);
+          currentX += pdf.getTextWidth(word) + spaceWidth;
+        });
+      }
+    }
+    y += lineHeight;
+  }
+
+  return y; // updated Y position
+}
+
+export const generateLetterPDF = async (letter: any): Promise<Blob> => {
+  const pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+
+  const type = (letter.letterType || "").toLowerCase();
+  const backgroundImageUrl = type === "offer" ? "/IOL-1.png" : "/ICL-1.png";
+
+  const loadImageAsBase64 = async (url: string): Promise<string> => {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const backgroundBase64 = await loadImageAsBase64(backgroundImageUrl);
+  pdf.addImage(backgroundBase64, "PNG", 0, 0, pageWidth, pageHeight);
+
+  pdf.setTextColor(0, 0, 0);
+  pdf.setFontSize(10);
+  pdf.setFont("helvetica", "normal");
+
+  let yPosition = 65;
+
+  if (type === "offer") {
+    pdf.text(`Date: ${letter.date || new Date().toLocaleDateString()}`, 20, yPosition);
+
+    yPosition += 6;
+    pdf.text(`Dear ${letter.recipientName || ""},`, 20, yPosition);
+
+    yPosition += 8;
+    pdf.setFont("helvetica", "bold");
+    pdf.text(
+      `SUB: Our offer for the position of ${letter.courseName} Intern`,
+      pageWidth / 2,
+      yPosition,
+      { align: "center" }
+    );
+
+    yPosition += 10;
+    pdf.setFont("Courier", "normal");
+
+    const bodyWidth = 170;
+    const leftMargin = 20;
+
+    const body = `
+We are excited to offer you the ${letter.courseName} Intern position at Tarcin Robotic LLP. If you accept, your internship will commence on ${letter.startDate}, with a requirement of at least 30 hours per week. The internship is scheduled to run from ${letter.startDate} to ${letter.endDate}, and there is a possibility of an extension based on your performance, engagement, contribution, and overall well-being.
+
+As an intern you will have the opportunity to work on cutting-edge projects and experience in the field of ${letter.courseName}. We encourage you to take full advantage of this opportunity by actively participating in all assigned tasks and projects. Your contributions will be valued, and we look forward to seeing your growth and development throughout the internship. Your compensation will be decided after this intern period based on your performance.
+
+By accepting this Intern offer, you agree to maintain confidentiality regarding all company information and to refrain from using it for personal gain or disclosing it to external parties. Please indicate your acceptance of this offer by signing below and returning it to us, either through postal mail or email. If you have any questions or queries, please do not hesitate to contact us. We look forward to your positive response!
+    `;
+
+    yPosition = addJustifiedText(pdf, body.trim(), leftMargin, yPosition, bodyWidth, 6);
+
+} else if (type === "completion") {
+  let yPosition = 30;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(10);
+
+  const rightMargin = pageWidth - 20;
+  pdf.text(`Date: ${letter.date || new Date().toLocaleDateString()}`, rightMargin, yPosition, { align: "right" });
+
+  yPosition += 20;
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(14);
+  pdf.text("TO WHOM SO EVER IT MAY CONCERN", pageWidth / 2, yPosition, { align: "center" });
+
+  yPosition += 20;
+
+  pdf.setFont("Courier", "normal");
+  pdf.setFontSize(10);
+
+  // Helper to safely get string or empty if undefined/null
+  const safe = (val: any) => (val === undefined || val === null ? "" : val);
+
+  const recipientName = safe(letter.recipientName);
+  const internId = safe(letter.internId);
+  const courseName = safe(letter.courseName);
+  const projectTitle = safe(letter.projectTitle) || courseName;
+  const startDate = safe(letter.startDate);
+  const endDate = safe(letter.endDate);
+
+  const body = `
+This is to certify that ${recipientName}${internId ? ` (${internId})` : ""} has successfully completed the internship at Tarcin Robotics in the field of ${courseName}, during which the intern undertook a project titled '${projectTitle}' from ${startDate} to ${endDate}.
+
+Throughout the internship, ${recipientName} displayed exceptional performance and dedication. The intern actively engaged in various real-time projects, demonstrating the ability to apply theoretical knowledge to practical scenarios.
+
+The final internship report reflects a thorough understanding of the projects worked on, and the concepts learned. Contributions have been valuable, and all the requirements of the internship program have been successfully met.
+
+We commend the hard work and wish all the best for a successful future.
+`;
+
+  const bodyWidth = 170;
+  const leftMargin = 20;
+  yPosition = addJustifiedText(pdf, body.trim(), leftMargin, yPosition, bodyWidth, 7);
+}
+
+
+
+  return pdf.output("blob");
+};
+
+
+
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { Upload, User, Settings } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { CertificatePreviewModal } from "@/components/certificate-preview-modal";
+
+
+
+export default function CertificateGenerator() {
+  const [method, setMethod] = useState<"bulk" | "single">("single");
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+
+  // Added state for course codes (bulk + single)
+  const [bulkCourseCode, setBulkCourseCode] = useState("");
+  const [singleCourseCode, setSingleCourseCode] = useState("");
+
+  const [previewCert, setPreviewCert] = useState<any>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const singleCertMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/certificates", data);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "Certificate generated successfully!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/certificates"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      setPreviewCert(data);
+    },
+    onError: () => {
+      toast({
+        title: "Failed to generate certificate",
+        variant: "destructive"
+      });
+    },
+  });
+
+  const bulkCertMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
+      const response = await fetch("/api/certificates/bulk", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to process bulk certificates");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: `Bulk certificates generated successfully!`,
+        description: `Generated ${data.count} certificates`
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/certificates"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/batches"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to generate bulk certificates",
+        description: error.message,
+        variant: "destructive"
+      });
+    },
+  });
+
+  const handleSingleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
+    const data = {
+      recipientName: formData.get("recipientName") as string,
+      course: formData.get("course") as string,
+      courseCode: singleCourseCode,  // use uppercase state value
+      department: formData.get("department") as string || "",
+      college: formData.get("college") as string || "",
+      duration: formData.get("duration") as string || "",
+      content: formData.get("content") as string || "",
+    };
+
+    singleCertMutation.mutate(data);
+  };
+
+  const handleBulkSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!csvFile) {
+      toast({
+        title: "Please select a CSV file",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const formData = new FormData(e.currentTarget);
+    formData.append("csv", csvFile);
+
+    bulkCertMutation.mutate(formData);
+  };
+
+  return (
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-semibold text-gray-900" data-testid="page-title">
+          Certificate Generator
+        </h2>
+        <p className="text-sm text-gray-500 mt-1" data-testid="page-subtitle">
+          Create professional certificates individually or in bulk
+        </p>
+      </div>
+
+      {/* Generation Method Selection */}
+      <Card className="shadow-material">
+        <CardContent className="p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Generation Method</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Button
+              variant={method === "bulk" ? "default" : "outline"}
+              className="p-6 h-auto justify-start"
+              onClick={() => setMethod("bulk")}
+              data-testid="button-bulk-method"
+            >
+              <div className="text-center w-full">
+                <Upload className="h-8 w-8 mx-auto mb-3" />
+                <h4 className="text-lg font-medium mb-2">Bulk Generation</h4>
+                <p className="text-sm opacity-70">Upload CSV for multiple certificates</p>
+              </div>
+            </Button>
+
+            <Button
+              variant={method === "single" ? "default" : "outline"}
+              className="p-6 h-auto justify-start"
+              onClick={() => setMethod("single")}
+              data-testid="button-single-method"
+            >
+              <div className="text-center w-full">
+                <User className="h-8 w-8 mx-auto mb-3" />
+                <h4 className="text-lg font-medium mb-2">Individual Generation</h4>
+                <p className="text-sm opacity-70">Create single certificate manually</p>
+              </div>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Bulk Generation Form */}
+      {method === "bulk" && (
+        <Card className="shadow-material">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Bulk Certificate Generation</h3>
+            <form onSubmit={handleBulkSubmit} className="space-y-6">
+              <div>
+                <Label htmlFor="csv-upload">CSV File Upload</Label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary transition-colors mt-2">
+                  <Upload className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-600 mb-2">
+                    Drop your CSV file here or click to browse
+                  </p>
+                  <Input
+                    id="csv-upload"
+                    type="file"
+                    accept=".csv"
+                    onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                    className="hidden"
+                    data-testid="input-csv-upload"
+                  />
+                  <Button
+                    type="button"
+                    variant="link"
+                    onClick={() => document.getElementById("csv-upload")?.click()}
+                    data-testid="button-choose-file"
+                  >
+                    Choose File
+                  </Button>
+                  {csvFile && (
+                    <p className="text-sm text-green-600 mt-2">
+                      Selected: {csvFile.name}
+                    </p>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Required columns: Name, Course, Department, College, Duration
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="courseCode">Course Code</Label>
+                  <Input
+                    id="courseCode"
+                    name="courseCode"
+                    placeholder="e.g., FSW, DSA, MOB"
+                    data-testid="input-course-code"
+                    value={bulkCourseCode}
+                    onChange={(e) => setBulkCourseCode(e.target.value.toUpperCase())}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="year">Year</Label>
+                  <Input
+                    id="year"
+                    name="year"
+                    type="number"
+                    defaultValue={new Date().getFullYear()}
+                    data-testid="input-year"
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={bulkCertMutation.isPending}
+                className="w-full"
+                data-testid="button-generate-bulk"
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                {bulkCertMutation.isPending ? "Generating..." : "Generate Certificates"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Single Generation Form */}
+      {method === "single" && (
+        <Card className="shadow-material">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Individual Certificate Generation
+            </h3>
+            <form onSubmit={handleSingleSubmit} className="space-y-6">
+
+              {/* Recipient Name + Course */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="recipientName">Recipient Name *</Label>
+                  <Input
+                    id="recipientName"
+                    name="recipientName"
+                    required
+                    placeholder="Enter full name"
+                    data-testid="input-recipient-name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="course">Course *</Label>
+                  <Input
+                    id="course"
+                    name="course"
+                    required
+                    placeholder="Enter course name"
+                    data-testid="input-course"
+                  />
+                </div>
+              </div>
+
+              {/* Course Code + Department */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="courseCode">Course Code *</Label>
+                  <Input
+                    id="courseCode"
+                    name="courseCode"
+                    required
+                    placeholder="Enter course code (e.g., CS101)"
+                    data-testid="input-course-code"
+                    value={singleCourseCode}
+                    onChange={(e) => setSingleCourseCode(e.target.value.toUpperCase())}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="department">Department</Label>
+                  <Input
+                    id="department"
+                    name="department"
+                    placeholder="e.g., Computer Science"
+                    data-testid="input-department"
+                  />
+                </div>
+              </div>
+
+              {/* College + Duration */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="college">College/Institution</Label>
+                  <Input
+                    id="college"
+                    name="college"
+                    placeholder="Enter institution name"
+                    data-testid="input-college"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="duration">Duration</Label>
+                  <Input
+                    id="duration"
+                    name="duration"
+                    placeholder="e.g., 6 months"
+                    data-testid="input-duration"
+                  />
+                </div>
+              </div>
+
+              {/* Additional Content */}
+              <div>
+                <Label htmlFor="content">Additional Content</Label>
+                <Textarea
+                  id="content"
+                  name="content"
+                  rows={3}
+                  placeholder="Any additional information for the certificate"
+                  data-testid="textarea-content"
+                />
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex space-x-4">
+                <Button
+                  type="submit"
+                  disabled={singleCertMutation.isPending}
+                  className="flex-1"
+                  data-testid="button-generate-single"
+                >
+                  <User className="h-4 w-4 mr-2" />
+                  {singleCertMutation.isPending
+                    ? "Generating..."
+                    : "Generate Certificate"}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Preview Modal */}
+      {previewCert && (
+        <CertificatePreviewModal
+          certificate={previewCert}
+          isOpen={!!previewCert}
+          onClose={() => setPreviewCert(null)}
+        />
+      )}
+    </div>
+  );
+}

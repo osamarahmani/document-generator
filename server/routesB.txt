@@ -1,0 +1,14 @@
+ // pdf.setFontSize(12);
+    // pdf.setTextColor(71, 85, 105);
+    // pdf.text(
+    //   "a Microsoft initiative implemented by Edunet Foundation",
+    //   pageWidth / 2,
+    //   340,
+    //   { align: "center" }
+    // );
+    // pdf.text(
+    //   "in collaboration with All India Council for Technical Education (AICTE)",
+    //   pageWidth / 2,
+    //   360,
+    //   { align: "center" }
+    // );

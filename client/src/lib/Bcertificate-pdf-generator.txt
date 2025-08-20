@@ -1,0 +1,151 @@
+import { jsPDF } from "jspdf";
+import { defaultCertificateTemplate, type CertificateData, type CertificateTemplate } from '../templates/certificate-template';
+
+export const generateCertificatePDF = async (
+  certificate: CertificateData,
+  template: CertificateTemplate = defaultCertificateTemplate
+): Promise<Blob> => {
+  const pdf = new jsPDF({
+    orientation: template.orientation,
+    unit: "pt",
+    format: template.pageFormat,
+  });
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+
+  const backgroundImage = "/BGF.png";
+  const sealImage = "/Tarcin seal new 2025 blue (1).png";
+  const signImage = "/ARSADH_SIGN (1).png";
+  const logoLeft = "/tarcindarkblue1_1.png";
+  // const logoRight = "/AICTE.png";
+
+  // Updated loadImage: returns { dataUrl, width, height }
+  const loadImage = (src: string): Promise<{ dataUrl: string; width: number; height: number }> =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject("Canvas context not found");
+        ctx.drawImage(img, 0, 0);
+        resolve({ dataUrl: canvas.toDataURL("image/png"), width: img.width, height: img.height });
+      };
+      img.onerror = reject;
+      img.src = src;
+    });
+
+  try {
+    const [bg, seal, sign, logo1, ] = await Promise.all([
+      // const [bg, seal, sign, logo1, logo2] = await Promise.all([
+      loadImage(backgroundImage),
+      loadImage(sealImage),
+      loadImage(signImage),
+      loadImage(logoLeft),
+      // loadImage(logoRight),
+    ]);
+
+    // Draw background & borders as before
+    pdf.addImage(bg.dataUrl, "PNG", 0, 0, pageWidth, pageHeight);
+    pdf.setDrawColor(18, 24, 66);
+    pdf.setLineWidth(20);
+    pdf.rect(0, 0, pageWidth, pageHeight);
+    pdf.setDrawColor(2, 132, 199);
+    pdf.setLineWidth(1.5);
+    pdf.rect(20, 20, pageWidth - 40, pageHeight - 40);
+
+    // Calculate left logo size preserving aspect ratio (match preview h-28 ~ 112pt height)
+    const logo1Height = 112;
+    const logo1Width = (logo1.width / logo1.height) * logo1Height;
+    pdf.addImage(logo1.dataUrl, "PNG", 60, 50, logo1Width, logo1Height);
+
+    // Right logo stays same (if you want you can fix aspect ratio here too)
+    // pdf.addImage(logo2.dataUrl, "PNG", pageWidth - 160, 50, 80, 80);
+
+    // Fonts and text drawing as before
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(18, 24, 66);
+    pdf.setFontSize(28);
+    const title = "CERTIFICATE OF COMPLETION";
+    const titleWidth = pdf.getTextWidth(title);
+    pdf.text(title, (pageWidth - titleWidth) / 2, 180);
+
+    pdf.setFontSize(14);
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(100, 116, 139);
+    pdf.text("This is to certify that", pageWidth / 2, 210, { align: "center" });
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(36);
+    pdf.setTextColor(14, 165, 233);
+    pdf.text(certificate.recipientName, pageWidth / 2, 250, { align: "center" });
+
+    pdf.setDrawColor(0, 0, 0);
+    pdf.setLineWidth(2);
+    pdf.line(pageWidth / 2 - 175, 260, pageWidth / 2 + 175, 260);
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(16);
+    pdf.setTextColor(51, 65, 85);
+    pdf.text(
+      `Successfully completed a 4-week internship on ${certificate.course}`,
+      pageWidth / 2,
+      290,
+      { align: "center" }
+    );
+
+    pdf.setFontSize(14);
+    pdf.text(
+      `Duration: ${certificate.duration} | Department: ${certificate.department}`,
+      pageWidth / 2,
+      315,
+      { align: "center" }
+    );
+
+    pdf.setFontSize(12);
+    pdf.setTextColor(71, 85, 105);
+    pdf.text(
+      "a Microsoft initiative implemented by Edunet Foundation",
+      pageWidth / 2,
+      340,
+      { align: "center" }
+    );
+    pdf.text(
+      "in collaboration with All India Council for Technical Education (AICTE)",
+      pageWidth / 2,
+      360,
+      { align: "center" }
+    );
+    pdf.text(`Institute: Tarcin Robotic LLP`, pageWidth / 2, 380, { align: "center" });
+
+    pdf.addImage(seal.dataUrl, "PNG", pageWidth / 2 - 60, pageHeight - 150, 120, 120);
+    pdf.addImage(sign.dataUrl, "PNG", pageWidth - 160, pageHeight - 130, 100, 50);
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(12);
+    pdf.setTextColor(51, 65, 85);
+    pdf.text("Authorized Signatory", pageWidth - 110, pageHeight - 65, { align: "center" });
+
+    pdf.setFontSize(10);
+    pdf.setTextColor(107, 114, 128);
+    pdf.text("Tarcin Robotic LLP", pageWidth - 110, pageHeight - 50, { align: "center" });
+
+    pdf.setFont("courier", "normal");
+    pdf.setFontSize(10);
+    pdf.setTextColor(71, 85, 105);
+    pdf.text(`Certificate ID: ${certificate.certificateId}`, 40, pageHeight - 70);
+    pdf.text(
+      `Issue Date: ${new Date(certificate.createdAt ?? Date.now()).toLocaleDateString()}`,
+      40,
+      pageHeight - 55
+    );
+
+    return pdf.output("blob");
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    return new Blob(); // return an empty Blob to satisfy return type
+  }
+};
