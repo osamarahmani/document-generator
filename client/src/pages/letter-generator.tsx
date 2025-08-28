@@ -8,6 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, Edit, Handshake, GraduationCap } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { Download } from "lucide-react";
+
+
+
 
 
 export default function LetterGenerator() {
@@ -124,13 +128,51 @@ export default function LetterGenerator() {
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-semibold text-gray-900" data-testid="page-title">
+        <h2
+          className="text-2xl font-semibold text-gray-900"
+          data-testid="page-title"
+        >
           Letter Generator
         </h2>
-        <p className="text-sm text-gray-500 mt-1" data-testid="page-subtitle">
-          Generate offer letters and completion certificates
+        <p
+          className="text-sm text-gray-500 mt-1"
+          data-testid="page-subtitle"
+        >
+          Generate offer letters and completion Letter
         </p>
+
+        {/* CSV Download Button */}
+        <Button
+          onClick={() => {
+            const headers = [
+              "recipientName",
+              "courseName",
+              "startDate",
+              "endDate",
+              "completionDate",
+              "projectTitle"
+            ];
+            const csvContent = headers.join(",") + "\n";
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.setAttribute("download", "letter_template.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }}
+          variant="outline"
+          className="mt-3 flex items-center space-x-2"
+          data-testid="button-download-letter-template"
+        >
+          <Download className="h-4 w-4" />  
+          <span>Download CSV Template</span>
+        </Button>
+
+       
       </div>
+
 
       {/* Letter Type Selection */}
       <Card className="shadow-material">
@@ -158,7 +200,7 @@ export default function LetterGenerator() {
             >
               <div className="text-center w-full">
                 <GraduationCap className="h-8 w-8 mx-auto mb-3" />
-                <h4 className="text-lg font-medium mb-2">Completion Certificate</h4>
+                <h4 className="text-lg font-medium mb-2">Completion Letter</h4>
                 <p className="text-sm opacity-70">Generate course completion letters</p>
               </div>
             </Button>
@@ -313,7 +355,7 @@ export default function LetterGenerator() {
                     </div>
                   </div>
 
-                  <div>
+                  {/* <div>
                     <Label htmlFor="completionDate">Completion Date</Label>
                     <Input
                       id="completionDate"
@@ -321,7 +363,7 @@ export default function LetterGenerator() {
                       type="date"
                       data-testid="input-completion-date"
                     />
-                  </div>
+                  </div> */}
                 </>
               )}
 
@@ -351,15 +393,15 @@ export default function LetterGenerator() {
                   </div>
 
                   <div>
-                    <Label htmlFor="projectTitle">Project Title *</Label>
+                    <Label htmlFor="projectTitle">Project Title</Label>
                     <Input
                       id="projectTitle"
-                      name="projectTitle" // ✅ matches generator
-                      required
-                      placeholder="Enter project title"
+                      name="projectTitle"
+                      placeholder="Enter project title (optional)"
                       data-testid="input-project-title"
                     />
                   </div>
+
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>

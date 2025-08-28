@@ -202,7 +202,7 @@ function renderTemplateText(
       // Calculate total width of text without spaces
       let totalTextWidth = 0;
       textWords.forEach(word => {
-        pdf.setFont("Courier", word.bold ? "bold" : "normal");
+        pdf.setFont("helvetica", word.bold ? "bold" : "normal");
         totalTextWidth += pdf.getTextWidth(word.text);
       });
 
@@ -221,7 +221,7 @@ function renderTemplateText(
         if (item.isSpace) {
           cursorX += spaceWidth;
         } else {
-          pdf.setFont("Courier", item.bold ? "bold" : "normal");
+          pdf.setFont("helvetica", item.bold ? "bold" : "normal");
           pdf.text(item.text, cursorX, currentY);
           cursorX += pdf.getTextWidth(item.text);
         }
@@ -243,7 +243,7 @@ function renderTemplateText(
         if (item.isSpace) {
           lineWidth += pdf.getTextWidth(" ");
         } else {
-          pdf.setFont("Courier", item.bold ? "bold" : "normal");
+          pdf.setFont("helvetica", item.bold ? "bold" : "normal");
           lineWidth += pdf.getTextWidth(item.text);
         }
       });
@@ -312,8 +312,8 @@ export const generateLetterPDF = async (letter: any): Promise<Blob> => {
   }
 
   pdf.setTextColor(0, 0, 0);
-  pdf.setFontSize(10);
-  pdf.setFont("Courier", "normal");
+  pdf.setFontSize(12);
+  pdf.setFont("helvetica", "normal");
 
   // ✅ Format the data consistently for both bulk and individual generation
   const formattedData = formatLetterData(letter);
@@ -324,11 +324,11 @@ export const generateLetterPDF = async (letter: any): Promise<Blob> => {
 
   // ---------------- OFFER LETTER ----------------
   if (type === "offer") {
-    pdf.setFont("Courier", "bold");
+    pdf.setFont("helvetica", "bold");
     pdf.text(`Date: ${formattedData.date}`, 20, yPosition);
 
     yPosition += 6;
-    pdf.setFont("Courier", "bold");
+    pdf.setFont("helvetica", "bold");
     pdf.text(`Dear ${formattedData.recipientName},`, 20, yPosition);
 
     yPosition += 8;
@@ -341,7 +341,7 @@ export const generateLetterPDF = async (letter: any): Promise<Blob> => {
     );
 
     yPosition += 10;
-    pdf.setFont("Courier", "normal");
+    pdf.setFont("helvetica", "normal");
 
     const bodyWidth = 170;
     const leftMargin = 20;
@@ -367,38 +367,96 @@ If you have any questions, please do not hesitate to contact us. We look forward
       leftMargin,
       yPosition,
       bodyWidth,
-      6,
-      10
+      8,
+      7
     );
   }
 
   // ---------------- COMPLETION LETTER ----------------
-  else if (type === "completion") {
-    yPosition = 30;
-    pdf.setFont("Courier", "bold");
-    pdf.setFontSize(10);
+//   else if (type === "completion") {
+//     yPosition = 30;
+//     pdf.setFont("helvetica", "bold");
+//     pdf.setFontSize(10);
 
-    const rightMargin = pageWidth - 20;
-    pdf.setFont("Courier", "bold");
-    pdf.text(`Date: ${formattedData.date}`, rightMargin, yPosition, {
-      align: "right",
-    });
+//     const rightMargin = pageWidth - 20;
+//     pdf.setFont("helvetica", "bold");
+//     pdf.text(`Date: ${formattedData.date}`, rightMargin, yPosition, {
+//       align: "right",
+//     });
 
-    yPosition += 20;
+//     yPosition += 20;
 
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(14);
-    pdf.text("TO WHOM SO EVER IT MAY CONCERN", pageWidth / 2, yPosition, {
-      align: "center",
-    });
+//     pdf.setFont("helvetica", "bold");
+//     pdf.setFontSize(14);
+//     pdf.text("TO WHOM SO EVER IT MAY CONCERN", pageWidth / 2, yPosition, {
+//       align: "center",
+//     });
 
-    yPosition += 20;
+//     yPosition += 20;
 
-    pdf.setFont("Courier", "normal");
-    pdf.setFontSize(10);
+//     pdf.setFont("helvetica", "normal");
+//     pdf.setFontSize(10);
 
-    const body = `
-This is to certify that {{recipientName}}  has successfully completed the internship at Tarcin Robotics in the field of {{courseName}}, during which the intern undertook a project titled '{{projectTitle}}' from {{startDate}} to {{endDate}}.
+//     const body = `
+// This is to certify that {{recipientName}}  has successfully completed the internship at Tarcin Robotics in the field of {{courseName}}, during which the intern undertook a project titled '{{projectTitle}}' from {{startDate}} to {{endDate}}.
+
+// Throughout the internship, {{recipientName}} displayed exceptional performance and dedication. 
+// The intern actively engaged in various real-time projects, demonstrating the ability to apply theoretical knowledge to practical scenarios.
+
+// The final internship report reflects a thorough understanding of the projects worked on, and the concepts learned. 
+// Contributions have been valuable, and all the requirements of the internship program have been successfully met.
+
+// We commend the hard work and wish all the best for a successful future.
+// `;
+
+//     const bodyWidth = 170;
+//     const leftMargin = 20;
+
+//     yPosition = renderTemplateText(
+//       pdf,
+//       body.trim(),
+//       formattedData, // ✅ Use consistently formatted data
+//       leftMargin,
+//       yPosition,
+//       bodyWidth,
+//       7,
+//       8
+//     );
+//   }
+else if (type === "completion") {
+  yPosition = 30;
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10);
+
+  const rightMargin = pageWidth - 20;
+  pdf.text(`Date: ${formattedData.date}`, rightMargin, yPosition, {
+    align: "right",
+  });
+
+  yPosition += 20;
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(14);
+  pdf.text("TO WHOMSOEVER IT MAY CONCERN", pageWidth / 2, yPosition, {
+    align: "center",
+  });
+
+  yPosition += 20;
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(12);
+
+  // 🔑 Build first line dynamically
+  let firstLine = `This is to certify that {{recipientName}} has successfully completed the internship at Tarcin Robotics in the field of {{courseName}}`;
+
+  if (formattedData.projectTitle) {
+    firstLine += `, during which the intern undertook a project titled '{{projectTitle}}'`;
+  }
+
+  firstLine += ` from {{startDate}} to {{endDate}}.`;
+
+  const body = `
+${firstLine}
 
 Throughout the internship, {{recipientName}} displayed exceptional performance and dedication. 
 The intern actively engaged in various real-time projects, demonstrating the ability to apply theoretical knowledge to practical scenarios.
@@ -409,20 +467,21 @@ Contributions have been valuable, and all the requirements of the internship pro
 We commend the hard work and wish all the best for a successful future.
 `;
 
-    const bodyWidth = 170;
-    const leftMargin = 20;
+  const bodyWidth = 170;
+  const leftMargin = 20;
 
-    yPosition = renderTemplateText(
-      pdf,
-      body.trim(),
-      formattedData, // ✅ Use consistently formatted data
-      leftMargin,
-      yPosition,
-      bodyWidth,
-      7,
-      10
-    );
-  }
+  yPosition = renderTemplateText(
+    pdf,
+    body.trim(),
+    formattedData,
+    leftMargin,
+    yPosition,
+    bodyWidth,
+    7,
+    8
+  );
+}
+
 
   return pdf.output("blob");
 };

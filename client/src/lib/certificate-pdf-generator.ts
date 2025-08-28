@@ -133,19 +133,34 @@ export const generateCertificatePDF = async (
         : `Successfully completed internship on ${certificate.course}`;
 
     // ✅ Auto-wrap if text is long
-    const textWidth = pageWidth - 100; // margins
+    // const textWidth = pageWidth - 170; // margins
+    // const splitText = pdf.splitTextToSize(certificateText, textWidth);
+
+    // pdf.text(splitText, pageWidth / 2, 290 + yOffset, { align: "center" });
+    // ✅ Auto-wrap if text is long
+    const textWidth = pageWidth - 170; // margins
     const splitText = pdf.splitTextToSize(certificateText, textWidth);
 
-    pdf.text(splitText, pageWidth / 2, 290 + yOffset, { align: "center" });
+    // ✅ Add custom spacing between lines
+    const lineHeight = 25; // <-- increase for more gap
+    let startY = 290 + yOffset;
+
+    pdf.setFontSize(16);
+    pdf.setTextColor(51, 65, 85);
+
+    splitText.forEach((line, i) => {
+      pdf.text(line, pageWidth / 2, startY + i * lineHeight, { align: "center" });
+    });
 
 
-    pdf.setFontSize(14);
-    pdf.text(
-      `Duration: ${certificate.duration} | Department: ${certificate.department}`,
-      pageWidth / 2,
-      315 + yOffset,
-      { align: "center" }
-    );
+
+    // pdf.setFontSize(14);
+    // pdf.text(
+    //   `Duration: ${certificate.duration} | Department: ${certificate.department}`,
+    //   pageWidth / 2,
+    //   315 + yOffset,
+    //   { align: "center" }
+    // );
 
 
 

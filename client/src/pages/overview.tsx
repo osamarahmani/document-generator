@@ -38,7 +38,7 @@ export default function Overview() {
   return (
 
     <div className="p-6 space-y-8">
-      <div
+      {/* <div
         className="bg-yellow-200 border border-yellow-400 text-yellow-900 px-4 py-3 rounded relative mb-6 animate-pulse"
         role="alert"
       >
@@ -57,9 +57,9 @@ export default function Overview() {
           className="absolute top-0 bottom-0 right-0 px-4 py-3"
           aria-label="Close alert"
         >
-          {/* close icon SVG */}
+          close icon SVG
         </button>
-      </div>
+      </div> */}
 
 
 

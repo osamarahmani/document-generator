@@ -9,6 +9,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Upload, User, Settings } from "lucide-react";
 import { CertificatePreviewModal } from "@/components/certificate-preview-modal";
+import { Download } from "lucide-react";
+
+
+const downloadCSVTemplate = () => {
+  const headers = ["Name", "certID", "Course", "Department", "College", "Content", "Duration", "DOB"];
+  const csvContent = headers.join(",") + "\n"; // just header row
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", "certificate_csv_template.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
 
 // Backend base URL from environment variable
 
@@ -133,7 +150,20 @@ export default function CertificateGenerator() {
         <p className="text-sm text-gray-500 mt-1" data-testid="page-subtitle">
           Create professional certificates individually or in bulk
         </p>
+
+        {/* CSV Download Button */}
+        <Button
+          onClick={downloadCSVTemplate}
+          variant="outline"
+          className="mt-3 flex items-center space-x-2"
+          data-testid="button-download-csv-template"
+        >
+          <Download className="h-4 w-4" />
+          <span>Download CSV Template</span>
+        </Button>
       </div>
+
+
 
       {/* Generation Method Selection */}
       <Card className="shadow-material">

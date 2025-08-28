@@ -146,7 +146,7 @@ export const CertificatePreviewModal = ({
             </div>
 
             {/* Duration and Department - exactly matching generator */}
-            <div className="absolute w-full" style={{ top: '44.5%' }}>
+            {/* <div className="absolute w-full" style={{ top: '44.5%' }}>
               <p 
                 className="text-center"
                 style={{
@@ -157,7 +157,7 @@ export const CertificatePreviewModal = ({
               >
                 Duration: {certificate.duration} | Department: {certificate.department}
               </p>
-            </div>
+            </div> */}
 
             {/* Certificate ID and Issue Date - exactly matching generator position */}
             <div 
